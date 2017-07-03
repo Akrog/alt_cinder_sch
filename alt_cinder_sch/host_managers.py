@@ -35,8 +35,11 @@ def get_over_subscription(self, filter_properties, default_thin=True):
     if req_type in ('thin', 'thick'):
         thin = req_type == 'thin'
 
-    # Default and requested Thin is only relevant if backend supports thin
-    thin = thin and self.thin_provisioning_support
+    # Default and requested are only relevant if backend supports it
+    if thin:
+        thin = self.thin_provisioning_support
+    else:
+        thin = not self.thick_provisioning_support
 
     if thin:
         return float(self.max_over_subscription_ratio)
