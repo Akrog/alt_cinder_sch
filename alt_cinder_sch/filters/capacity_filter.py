@@ -130,7 +130,12 @@ class AltCapacityFilter(BaseFilterClass):
             # is not 0, we cannot calculate the reserved space.
             # float(total_space) will throw an exception. total*reserved
             # also won't work. So the back-ends cannot serve the request.
-            return reserved == 0
+            res = reserved == 0
+            if not res:
+                LOG.debug("Cannot calculate GB of reserved space (%s%%) with "
+                          "backend's reported total capacity '%s'",
+                          backend_state.reserved_percentage, total_space)
+            return res
         total = float(total_space)
 
         grouping = self._get_grouping(backend_state)
@@ -176,7 +181,17 @@ class AltCapacityFilter(BaseFilterClass):
                 # the currently available free capacity (taking into account
                 # of reserved space) which we can over-subscribe.
                 adjusted_free_virtual = free * over_subscription
-                return adjusted_free_virtual >= requested_size
+                res = adjusted_free_virtual >= requested_size
+                if not res:
+                    msg_args = {"available": adjusted_free_virtual,
+                                "size": requested_size,
+                                "grouping": grouping,
+                                "grouping_name": backend_state.backend_id}
+                    LOG.warning("Insufficient free virtual space "
+                                "(%(available)sGB) to accomodate thin "
+                                "provisioned %(size)sGB volume on %(grouping)s"
+                                " %(grouping_name)s.", msg_args)
+                return res
 
         msg_args = {"grouping_name": backend_state.backend_id,
                     "grouping": grouping,
