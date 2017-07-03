@@ -54,11 +54,17 @@ def consume_from_volume(self, volume, filter_properties=None):
     self.updated = timeutils.utcnow()
 
 
+def backend_id(self):
+    return getattr(self, 'cluster_name', None) or self.host
+
+
 class BackendStateThin(BaseStateClass):
     default_thin = True
 
     get_over_subscription = get_over_subscription
     consume_from_volume = consume_from_volume
+
+    backend_id = property(backend_id)
 
 
 class BackendStateThick(BackendStateThin):
@@ -67,6 +73,7 @@ class BackendStateThick(BackendStateThin):
 
 class HostManagerThin(host_manager.HostManager):
     backend_state_cls = BackendStateThin
+    host_state_cls = backend_state_cls
 
     def __init__(self, *args, **kwargs):
         # Since we have no mechanism in Cinder to configure the Pool class to
@@ -77,7 +84,12 @@ class HostManagerThin(host_manager.HostManager):
         host_manager.PoolState.default_thin = (
             self.backend_state_cls.default_thin)
         super(HostManagerThin, self).__init__(*args, **kwargs)
+        # Our scheduler driver is expecting to have backend_id property
+        if not hasattr(host_manager.PoolState, 'backend_id'):
+            # If not present simulate pointing to the host value
+            host_manager.PoolState.backend_id = property(backend_id)
 
 
 class HostManagerThick(HostManagerThin):
     backend_state_cls = BackendStateThick
+    host_state_cls = backend_state_cls

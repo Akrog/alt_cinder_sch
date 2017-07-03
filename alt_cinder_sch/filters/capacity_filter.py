@@ -21,20 +21,30 @@
 import math
 
 from cinder import exception
-from cinder.scheduler import filters
+try:
+    from cinder.openstack.common.scheduler import filters
+except ImportError:
+    from cinder.scheduler import filters
 from oslo_log import log as logging
 
 
 LOG = logging.getLogger(__name__)
 
 
-class AltCapacityFilter(filters.BaseBackendFilter):
+# In newer Cinder versions it's called BackendState, but in older ones it's
+# HostState
+BaseFilterClass = getattr(filters, 'BaseBackendFilter',
+                          getattr(filters, 'BaseHostFilter', None))
+
+
+class AltCapacityFilter(BaseFilterClass):
     """Capacity filters based on volume backend's capacity utilization.
 
     This requires using HostManagerThin or HostManagerThick."""
 
     def _get_grouping(self, backend_state):
-        return 'cluster' if backend_state.cluster_name else 'host'
+        return ('cluster' if getattr(backend_state, 'cluster_name', None)
+                else 'host')
 
     def _check_valid_backend_state(self, backend_state, filter_properties):
         if not hasattr(backend_state, 'get_over_subscription'):
@@ -184,3 +194,6 @@ class AltCapacityFilter(filters.BaseBackendFilter):
                   "on %(grouping)s %(grouping_name)s (requested / avail): "
                   "%(requested)s/%(available)s", msg_args)
         return True
+
+    # For compatibility with older Cinder services
+    host_passes = backend_passes

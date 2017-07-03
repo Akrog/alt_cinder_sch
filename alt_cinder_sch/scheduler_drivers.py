@@ -35,6 +35,7 @@ NoValidBackend = getattr(exception, 'NoValidBackend',
 
 class FilterScheduler(filter_scheduler.FilterScheduler):
     """Like Cinder's default but passing filter_properties to consume."""
+
     def _choose_top_backend(self, weighed_backends, request_spec,
                             filter_properties=None):
         top_backend = weighed_backends[0]
@@ -119,3 +120,7 @@ class FilterScheduler(filter_scheduler.FilterScheduler):
             return None
         return self._choose_top_backend(weighed_backends, request_spec,
                                         filter_properties)
+
+    # For compatibility with older Cinder services
+    _choose_top_host = _choose_top_backend
+    find_retype_host = find_retype_backend
