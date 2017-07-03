@@ -14,7 +14,11 @@
 #    under the License.
 
 from cinder.scheduler import host_manager
+from oslo_log import log as logging
 from oslo_utils import timeutils
+
+
+LOG = logging.getLogger(__name__)
 
 
 # In newer Cinder versions it's called BackendState, but in older ones it's
@@ -53,7 +57,10 @@ def consume_from_volume(self, volume, filter_properties=None):
     self.provisioned_capacity_gb += volume_gb
     if self.free_capacity_gb not in ('infinite', 'unknown'):
         over_subscription = self.get_over_subscription(filter_properties)
-        self.free_capacity_gb -= volume_gb / over_subscription
+        consume = volume_gb / over_subscription
+        LOG.debug('Consuming %sGB/%sGB from %s', consume,
+                  self.free_capacity_gb, self.host)
+        self.free_capacity_gb -= consume
     self.updated = timeutils.utcnow()
 
 
