@@ -18,7 +18,7 @@ test_requirements = [
 
 setup(
     name='alt_cinder_sch',
-    version='0.1.0',
+    version='0.1.1',
     description=("Alternative Classes -filter, host manager, etc.- for "
                  "OpenStack's Cinder"),
     long_description=readme + '\n\n' + history,
