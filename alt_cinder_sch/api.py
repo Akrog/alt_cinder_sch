@@ -77,6 +77,7 @@ class DefaultVolumeTypeAPI(api.API):
         if not (volume_type or source_volume or snapshot or
                 self._image_has_valid_volume_type(context, image_id)):
             client = self._get_keystone_client(context)
+            project = None
             user = client.users.get(context.user)
             def_vol_type = getattr(user, 'default_vol_type', None)
             # Check project if there's no default on the user
@@ -86,12 +87,16 @@ class DefaultVolumeTypeAPI(api.API):
 
             # if we have a keystone default, retrieve the volume type from db
             if def_vol_type:
-                # ctxt = context.elevated()
-                if uuidutils.is_uuid_like(def_vol_type):
-                    volume_type = db.volume_type_get(context, def_vol_type)
-                else:
-                    volume_type = db.volume_type_get_by_name(context,
-                                                             def_vol_type)
+                try:
+                    if uuidutils.is_uuid_like(def_vol_type):
+                        volume_type = db.volume_type_get(context, def_vol_type)
+                    else:
+                        volume_type = db.volume_type_get_by_name(context,
+                                                                 def_vol_type)
+                except exception.VolumeTypeNotFound:
+                    raise exception.VolumeTypeNotFound(
+                        u'Default volume type %s for %s could not be found.' %
+                        (def_vol_type, 'project' if project else 'user'))
 
         return super(DefaultVolumeTypeAPI, self).create(
             context, size, name, description, snapshot=snapshot,
