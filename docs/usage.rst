@@ -32,11 +32,16 @@ To support Default Volume Types based on users or projects the package needs to
 be installed in all API nodes as instructed in the
 :doc:`installation guide <installation>`.
 
-Then configuration files will need to be updated to use the API class::
+Then configuration files on the API nodes will need to be updated to use our
+custome API class::
 
     volume_api_class = alt_cinder_sch.api.DefaultVolumeTypeAPI
 
-And the default volume type will need to be added to the users and/or projects
+Since we are only changing the configuration for the API service only these
+will need to be restarted, leaving Scheduler, Backup, and Volume services as
+they were.
+
+And the default volume types will need to be added to the users and/or projects
 in Keystone directly in the DB (there's no REST API).
 
 Data must be added to extra DB field as JSON with key `default_vol_type`.
