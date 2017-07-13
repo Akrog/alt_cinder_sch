@@ -5,7 +5,11 @@ from cinder.volume import volume_types
 from keystoneauth1 import identity
 from keystoneclient import client
 from oslo_config import cfg
+from oslo_log import log as logging
 from oslo_utils import uuidutils
+
+
+LOG = logging.getLogger(__name__)
 
 
 class DefaultVolumeTypeAPI(api.API):
@@ -77,11 +81,12 @@ class DefaultVolumeTypeAPI(api.API):
         if not (volume_type or source_volume or snapshot or
                 self._image_has_valid_volume_type(context, image_id)):
             client = self._get_keystone_client(context)
-            project = None
+            source = 'user'
             user = client.users.get(context.user)
             def_vol_type = getattr(user, 'default_vol_type', None)
             # Check project if there's no default on the user
             if not def_vol_type:
+                source = 'project'
                 project = client.projects.get(context.project_id)
                 def_vol_type = getattr(project, 'default_vol_type', None)
 
@@ -96,7 +101,9 @@ class DefaultVolumeTypeAPI(api.API):
                 except exception.VolumeTypeNotFound:
                     raise exception.VolumeTypeNotFound(
                         u'Default volume type %s for %s could not be found.' %
-                        (def_vol_type, 'project' if project else 'user'))
+                        (def_vol_type, source))
+                LOG.debug(u'Using default volume type %s for %s.',
+                          def_vol_type, source)
 
         return super(DefaultVolumeTypeAPI, self).create(
             context, size, name, description, snapshot=snapshot,
