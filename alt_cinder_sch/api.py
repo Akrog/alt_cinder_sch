@@ -1,6 +1,7 @@
 from cinder import db
 from cinder import exception
 from cinder.volume import api
+from cinder.volume import volume_types
 from keystoneauth1 import identity
 from keystoneclient import client
 from oslo_config import cfg
@@ -36,8 +37,27 @@ class DefaultVolumeTypeAPI(api.API):
         ks = client.Client(auth_url=url, auth=auth)
         return ks
 
+    def _image_has_valid_volume_type(self, context, image_id):
+        if not image_id:
+            return False
+
+        image = self.image_service.show(context, image_id)
+        # check whether image is active
+        type_name = image.get('properties', {}).get('cinder_img_volume_type')
+
+        if not type_name:
+            return False
+
+        try:
+            volume_types.get_volume_type_by_name(context, type_name)
+            return True
+        except exception.VolumeTypeNotFoundByName:
+            return False
+
     def create(self, context, size, name, description, snapshot=None,
-               image_id=None, volume_type=None, *args, **kwargs):
+               image_id=None, volume_type=None, metadata=None,
+               availability_zone=None, source_volume=None,
+               *args, **kwargs):
         """Create a volume with configurable default volume types.
 
         Use extra information from Keystone to retrieve project and user's
@@ -47,13 +67,15 @@ class DefaultVolumeTypeAPI(api.API):
 
         Order of preference is:
 
-        1- If Keystone's user has default_vol_type in extra field.
-        2- If Keystone's project has default_vol_type in extra field.
-        3- Cinder's default_volume_type
+        1- Source volume type: volume, snapshot, image metadata
+        2- If Keystone's user has default_vol_type in extra field.
+        3- If Keystone's project has default_vol_type in extra field.
+        4- Cinder configured `default_volume_type`
         """
-
-        # Check Keystone's default volume types when user didn't specify it.
-        if not volume_type:
+        # Check Keystone's default volume types when user didn't specify it
+        # explicitly, via source volume, snapshot, or in the image metadata.
+        if not (volume_type or source_volume or snapshot or
+                self._image_has_valid_volume_type(context, image_id)):
             client = self._get_keystone_client(context)
             user = client.users.get(context.user)
             def_vol_type = getattr(user, 'default_vol_type', None)
@@ -73,5 +95,6 @@ class DefaultVolumeTypeAPI(api.API):
 
         return super(DefaultVolumeTypeAPI, self).create(
             context, size, name, description, snapshot=snapshot,
-            image_id=image_id, volume_type=volume_type, *args,
-            **kwargs)
+            image_id=image_id, volume_type=volume_type, metadata=metadata,
+            availability_zone=availability_zone, source_volume=source_volume,
+            *args, **kwargs)

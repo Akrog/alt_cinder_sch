@@ -50,9 +50,10 @@ default volume types for specific projects and/or users.
 
 The precedence would be:
 
-1- User's default volume type
-2- Project's default volume type
-3- Cinder configured `default_volume_type`
+1- Source volume type: volume, snapshot, image metadata
+2- User's default volume type
+3- Project's default volume type
+4- Cinder configured `default_volume_type`
 
 User and project default volume types must be defined in Keystone's DB in the
 `extra` field of `user` and `project` tables.  It is not necessary to define it
